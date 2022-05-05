@@ -90,9 +90,9 @@ def create_model(args, prior_model=None, mean=None, std=None):
     if args['use_clip'] or args['use_cloob']:
 
         atom_prop_encoder = (PropertiesEncoder(
-            num_layers=10,
+            num_layers=8,
             properties_length=8,
-            hidden_dim=args["embedding_dimension"],
+            hidden_dim=args["embedding_dimension"]*2,
         )
             if not args["pretrain_mol_only"]
             else None
@@ -100,9 +100,9 @@ def create_model(args, prior_model=None, mean=None, std=None):
 
         mol_prop_encoder = (
             PropertiesEncoder(
-            num_layers=12,
+            num_layers=8,
             properties_length=23,
-            hidden_dim=args["embedding_dimension"],
+            hidden_dim=args["embedding_dimension"]*2,
         )
             if not args["pretrain_atom_only"]
             else None
