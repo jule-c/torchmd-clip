@@ -274,22 +274,46 @@ class LNNP(LightningModule):
                             self.losses["test_dy"]
                         ).mean()
             else:
-                result_dict = {
-                    "epoch": self.current_epoch,
-                    "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
-                    "train_loss": torch.stack(self.losses["train"]).mean(),
-                    "val_loss": torch.stack(self.losses["val"]).mean(),
-                    "train_loss_x": torch.stack(self.losses["train_x"]).mean(),
-                    "val_loss_x": torch.stack(self.losses["val_x"]).mean(),
-                    "train_loss_y": torch.stack(self.losses["train_y"]).mean(),
-                    "val_loss_y": torch.stack(self.losses["val_y"]).mean(),
-                }
+                if len(self.losses["train_x"]) > 0 and len(self.losses["train_y"]) > 0:
+                    result_dict = {
+                        "epoch": self.current_epoch,
+                        "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
+                        "train_loss": torch.stack(self.losses["train"]).mean(),
+                        "val_loss": torch.stack(self.losses["val"]).mean(),
+                        "train_loss_x": torch.stack(self.losses["train_x"]).mean(),
+                        "val_loss_x": torch.stack(self.losses["val_x"]).mean(),
+                        "train_loss_y": torch.stack(self.losses["train_y"]).mean(),
+                        "val_loss_y": torch.stack(self.losses["val_y"]).mean(),
+                    }
+                elif len(self.losses["train_x"]) > 0:
+                    result_dict = {
+                        "epoch": self.current_epoch,
+                        "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
+                        "train_loss": torch.stack(self.losses["train"]).mean(),
+                        "val_loss": torch.stack(self.losses["val"]).mean(),
+                        "train_loss_x": torch.stack(self.losses["train_x"]).mean(),
+                        "val_loss_x": torch.stack(self.losses["val_x"]).mean(),
+                    }
+
+                elif len(self.losses["train_y"]) > 0:
+                    result_dict = {
+                        "epoch": self.current_epoch,
+                        "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
+                        "train_loss": torch.stack(self.losses["train"]).mean(),
+                        "val_loss": torch.stack(self.losses["val"]).mean(),
+                        "train_loss_y": torch.stack(self.losses["train_y"]).mean(),
+                        "val_loss_y": torch.stack(self.losses["val_y"]).mean(),
+                    }
 
                 if len(self.losses["test"]) > 0:
-                    result_dict["test_loss_x"] = torch.stack(
-                        self.losses["test_x"]).mean()
-                    result_dict["test_loss_y"] = torch.stack(
-                        self.losses["test_y"]).mean()
+
+                    if len(self.losses["test_x"]) > 0:
+                        result_dict["test_loss_x"] = torch.stack(
+                            self.losses["test_x"]).mean()
+
+                    if len(self.losses["test_y"]) > 0:
+                        result_dict["test_loss_y"] = torch.stack(
+                            self.losses["test_y"]).mean()
 
             self.log_dict(result_dict, sync_dist=True)
         self._reset_losses_dict()

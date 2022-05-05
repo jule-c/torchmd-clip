@@ -69,13 +69,14 @@ class QM7X_clip(Dataset):
 
     all_props = True
     atom_only = False
-    mol_only = True
+    mol_only = False
 
     def __init__(self, root, transform=None, pre_transform=None, dataset_arg="efc_only"):
         super(QM7X_clip, self).__init__(root, transform, pre_transform)
 
         logging.info(f"Using {dataset_arg}!")
-        assert ((self.atom_only is True and not self.mol_only is True) or (self.mol_only is True and not self.atom_only is True)
+        assert ((self.atom_only != self.mol_only) or
+                (self.mol_only is False and self.atom_only is False)
                 ), "Don't set atom_only and mol_only to True!"
         logging.info("Set all_props, atom_only and mol_only in qm7x_clip.py accordingly!")
         logging.info(f"Currently all_props: {self.all_props}, atom_only: {self.atom_only}, mol_only: {self.mol_only}.")
