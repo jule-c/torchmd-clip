@@ -2,7 +2,12 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 from torch import nn, Tensor
-from typing import Optional
+from torch_scatter import scatter
+from torch.autograd import grad
+from typing import Optional, List
+from torchmdnet.models.output_modules import EquivariantScalar
+
+
 
 class ContrastiveLoss(nn.Module):
     def __init__(self):
@@ -20,7 +25,7 @@ class ContrastiveLoss(nn.Module):
 class CLOOB_Loss(nn.Module):
     def __init__(self):
         super(CLOOB_Loss, self).__init__()
-        self.tau = 1/30
+        self.tau = 1/10
     
     def loob_loss(self, x, y):
         Ux = Hopfield(x, x)
@@ -69,6 +74,8 @@ class CLIP(nn.Module):
             concatenation=None,
             regression=False,
             CLOOB=False,
+            pretrain_atom_only=False,
+            pretrain_mol_only=False,
     ):
 
         super(CLIP, self).__init__()
@@ -84,6 +91,12 @@ class CLIP(nn.Module):
             self.concatenation = concatenation
             self.head = head
             self.CLOOB = CLOOB
+            self.scalar = EquivariantScalar(
+                hidden_channels=hidden_dim,
+                activation='silu'
+            )
+            self.pretrain_atom_only = pretrain_atom_only
+            self.pretrain_mol_only = pretrain_mol_only
 
         else:
             self.molecule_encoder = molecule_encoder
@@ -131,7 +144,28 @@ class CLIP(nn.Module):
                 return atom_prop_embedding, mol_prop_embedding
 
         else:
-            molecule_mol_embedding, molecule_atom_embedding = self.molecule_encoder(z, pos, batch=batch, q=q, s=s)
+
+            pos.requires_grad_(True)
+            x, vec, z, pos, batch = self.molecule_encoder(z, pos, batch=batch, q=q, s=s)
+
+            out = self.scalar.pre_reduce(x, vec, z, pos, batch)
+
+            grad_outputs: List[Optional[torch.Tensor]] = [torch.ones_like(out)]
+            dy = grad(
+                [out],
+                [pos],
+                grad_outputs=grad_outputs,
+                create_graph=True,
+                retain_graph=True,
+            )[0]
+
+            if not self.pretrain_atom_only:
+                x_mol = scatter(x, batch, dim=0)
+                molecule_mol_embedding = x_mol
+            else:
+                molecule_mol_embedding = None
+
+            molecule_atom_embedding = x if not self.pretrain_mol_only else None
 
             if self.atom_prop_encoder is not None:
                 assert (molecule_atom_embedding is not None), "Model does not output atomic embedding!"
@@ -151,7 +185,7 @@ class CLIP(nn.Module):
 
             if self.CLOOB:
                 
-                return molecule_mol_embedding, molecule_atom_embedding, mol_prop_embedding, atom_prop_embedding
+                return molecule_mol_embedding, molecule_atom_embedding, mol_prop_embedding, atom_prop_embedding, out, -dy
 
             else:
                 logit_scale = self.logit_scale.exp()
@@ -173,7 +207,7 @@ class CLIP(nn.Module):
 
                 return logits_per_molecule_mol, logits_per_mol_molecule, \
                        logits_per_molecule_atom, logits_per_atom_molecule, \
-                       labels_mol, labels_atom
+                       labels_mol, labels_atom, out, -dy
 
             # attention_s = torch.einsum('bd, dk -> bk', text_features, text_features.T)
             # p_s = torch.softmax(logit_scale * attention_s, dim=-1)

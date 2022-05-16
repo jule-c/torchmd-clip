@@ -67,8 +67,6 @@ class TorchMD_ET(nn.Module):
         cutoff_upper=5.0,
         max_z=100,
         max_num_neighbors=32,
-        use_clip=False,
-        use_cloob=False,
         pretrain_atom_only=False,
         pretrain_mol_only=False,
 
@@ -102,8 +100,6 @@ class TorchMD_ET(nn.Module):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
         self.max_z = max_z
-        self.use_clip = use_clip
-        self.use_cloob = use_cloob
         self.pretrain_atom_only = pretrain_atom_only
         self.pretrain_mol_only = pretrain_mol_only
 
@@ -186,18 +182,6 @@ class TorchMD_ET(nn.Module):
             x = x + dx
             vec = vec + dvec
         x = self.out_norm(x)
-
-        if self.use_clip or self.use_cloob:
-            vec = torch.norm(vec, dim=1)
-            if not self.pretrain_atom_only:
-                x_mol = scatter(x, batch, dim=0)
-                vec_mol = scatter(vec, batch, dim=0)
-                x_mol = torch.hstack([x_mol, vec_mol])
-            else:
-                x_mol = None
-
-            x_atom = torch.hstack([x, vec]) if not self.pretrain_mol_only else None
-            return x_mol, x_atom
 
         return x, vec, z, pos, batch
 

@@ -12,6 +12,7 @@ import warnings
 from torchmdnet.models.CLIP import CLIP
 from torchmdnet.models.properties import PropertiesEncoder
 
+
 def create_model(args, prior_model=None, mean=None, std=None):
     shared_args = dict(
         hidden_channels=args["embedding_dimension"],
@@ -53,8 +54,6 @@ def create_model(args, prior_model=None, mean=None, std=None):
             attn_activation=args["attn_activation"],
             num_heads=args["num_heads"],
             distance_influence=args["distance_influence"],
-            use_clip=args["use_clip"],
-            use_cloob=args["use_cloob"],
             pretrain_atom_only=args["pretrain_atom_only"],
             pretrain_mol_only=args["pretrain_mol_only"],
             **shared_args,
@@ -92,7 +91,7 @@ def create_model(args, prior_model=None, mean=None, std=None):
         atom_prop_encoder = (PropertiesEncoder(
             num_layers=3,
             properties_length=8,
-            hidden_dim=args["embedding_dimension"]*2,
+            hidden_dim=args["embedding_dimension"],
         )
             if not args["pretrain_mol_only"]
             else None
@@ -102,7 +101,7 @@ def create_model(args, prior_model=None, mean=None, std=None):
             PropertiesEncoder(
             num_layers=3,
             properties_length=23,
-            hidden_dim=args["embedding_dimension"]*2,
+            hidden_dim=args["embedding_dimension"],
         )
             if not args["pretrain_atom_only"]
             else None
@@ -114,6 +113,8 @@ def create_model(args, prior_model=None, mean=None, std=None):
             mol_prop_encoder=mol_prop_encoder,
             hidden_dim=args["embedding_dimension"],
             CLOOB=args["use_cloob"],
+            pretrain_atom_only=args["pretrain_atom_only"],
+            pretrain_mol_only=args["pretrain_mol_only"],
         )
 
         return clip_model

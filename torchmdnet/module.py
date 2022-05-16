@@ -158,7 +158,7 @@ class LNNP(LightningModule):
 
                 logits_per_molecule_mol, logits_per_mol_molecule, \
                 logits_per_molecule_atom, logits_per_atom_molecule, \
-                labels_mol, labels_atom \
+                labels_mol, labels_atom, out, dy \
                     = self(batch.z, batch.pos, batch=batch.batch,
                            atom_properties=atom_properties,
                            mol_properties=mol_properties,
@@ -176,8 +176,12 @@ class LNNP(LightningModule):
                 loss_x = loss_clip(logits_per_molecule_mol, logits_per_mol_molecule, labels_mol)
                 self.losses[stage + "_x"].append(loss_x.detach())
 
+            loss_forces = loss_fn(dy, batch.dy)
+            self.losses[stage + "_forces"].append(loss_forces.detach())
+
             # total loss
-            loss = (loss_x + loss_y)/2
+            div = 1 if logits_per_molecule_atom is None or logits_per_molecule_mol is None else 2
+            loss = (loss_x + loss_y) / div + loss_forces + out.sum() * 0
 
             self.losses[stage].append(loss.detach())
             return loss
@@ -190,7 +194,7 @@ class LNNP(LightningModule):
                 mol_properties = None if self.hparams.pretrain_atom_only else batch.mol_properties
                 atom_properties = None if self.hparams.pretrain_mol_only else batch.atom_properties
 
-                molecule_mol_embedding, molecule_atom_embedding, mol_prop_embedding, atom_prop_embedding \
+                molecule_mol_embedding, molecule_atom_embedding, mol_prop_embedding, atom_prop_embedding, out, dy \
                     = self(batch.z, batch.pos, batch=batch.batch,
                            atom_properties=atom_properties,
                            mol_properties=mol_properties,
@@ -208,8 +212,12 @@ class LNNP(LightningModule):
                 loss_x = loss_cloob(molecule_mol_embedding, mol_prop_embedding)
                 self.losses[stage + "_x"].append(loss_x.detach())
 
+            loss_forces = loss_fn(dy, batch.dy)
+            self.losses[stage + "_forces"].append(loss_forces.detach())
+
             # total loss
-            loss = (loss_x + loss_y)/2
+            div = 1 if molecule_mol_embedding is None or molecule_atom_embedding is None else 2
+            loss = (loss_x + loss_y)/div + loss_forces + out.sum() * 0
 
             self.losses[stage].append(loss.detach())
             return loss
@@ -284,6 +292,9 @@ class LNNP(LightningModule):
                         "val_loss_x": torch.stack(self.losses["val_x"]).mean(),
                         "train_loss_y": torch.stack(self.losses["train_y"]).mean(),
                         "val_loss_y": torch.stack(self.losses["val_y"]).mean(),
+                        "train_forces": torch.stack(self.losses["train_forces"]).mean(),
+                        "val_forces": torch.stack(self.losses["val_forces"]).mean(),
+
                     }
                 elif len(self.losses["train_x"]) > 0:
                     result_dict = {
@@ -293,6 +304,8 @@ class LNNP(LightningModule):
                         "val_loss": torch.stack(self.losses["val"]).mean(),
                         "train_loss_x": torch.stack(self.losses["train_x"]).mean(),
                         "val_loss_x": torch.stack(self.losses["val_x"]).mean(),
+                        "train_forces": torch.stack(self.losses["train_forces"]).mean(),
+                        "val_forces": torch.stack(self.losses["val_forces"]).mean(),
                     }
 
                 elif len(self.losses["train_y"]) > 0:
@@ -303,9 +316,14 @@ class LNNP(LightningModule):
                         "val_loss": torch.stack(self.losses["val"]).mean(),
                         "train_loss_y": torch.stack(self.losses["train_y"]).mean(),
                         "val_loss_y": torch.stack(self.losses["val_y"]).mean(),
+                        "train_forces": torch.stack(self.losses["train_forces"]).mean(),
+                        "val_forces": torch.stack(self.losses["val_forces"]).mean(),
                     }
 
                 if len(self.losses["test"]) > 0:
+
+                    result_dict["test_forces"] = torch.stack(
+                        self.losses["test_forces"]).mean()
 
                     if len(self.losses["test_x"]) > 0:
                         result_dict["test_loss_x"] = torch.stack(
@@ -342,6 +360,9 @@ class LNNP(LightningModule):
                 "train_y": [],
                 "val_y": [],
                 "test_y": [],
+                "train_forces": [],
+                "val_forces": [],
+                "test_forces": []
             }
 
     def _reset_ema_dict(self):
