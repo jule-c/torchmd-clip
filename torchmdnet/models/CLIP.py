@@ -14,7 +14,8 @@ class ContrastiveLoss(nn.Module):
         super(ContrastiveLoss, self).__init__()
         
     def _loss(self, logits, labels):
-        return F.nll_loss(logits, labels)
+        #return F.nll_loss(logits, labels)
+        return F.cross_entropy((logits, labels)
 
     def forward(self, molecule_embedding, properties_embedding, labels):
         molecule_loss = self._loss(molecule_embedding, labels)
@@ -56,8 +57,8 @@ def Loo_softmax(x, y, tau):
     expmat = torch.matmul(x, y.T)
     mat = torch.exp((1 / tau) * expmat)
     num = torch.diagonal(mat)
-    mask = torch.ones(x.size()[0], x.size()[0])
-    mask = mask - torch.eye(x.size()[0])
+    mask = torch.ones(x.size()[0], x.size()[0],device=mat.device.type)
+    mask = mask - torch.eye(x.size()[0],device=mat.device.type)
     denom = torch.matmul(mask, mat)
     denom = torch.diagonal(denom)
     return torch.div(num, denom)
