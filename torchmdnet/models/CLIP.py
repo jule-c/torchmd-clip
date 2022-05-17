@@ -15,7 +15,7 @@ class ContrastiveLoss(nn.Module):
         
     def _loss(self, logits, labels):
         #return F.nll_loss(logits, labels)
-        return F.cross_entropy((logits, labels)
+        return F.cross_entropy(logits, labels)
 
     def forward(self, molecule_embedding, properties_embedding, labels):
         molecule_loss = self._loss(molecule_embedding, labels)
